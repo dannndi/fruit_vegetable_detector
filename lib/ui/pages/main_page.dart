@@ -1,18 +1,27 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fruit_vegetable_detector/core/base/constant_variable.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:fruit_vegetable_detector/core/provider/classify_provider.dart';
+import 'package:fruit_vegetable_detector/ui/widgets/pick_image.dart';
+import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 
 class MainPage extends StatelessWidget {
+  //* variable
+  File _image;
   @override
   Widget build(BuildContext context) {
+    //* tool bar UI
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
       ),
     );
+
     return Scaffold(
       appBar: AppBar(
         title: Container(
@@ -55,17 +64,41 @@ class MainPage extends StatelessWidget {
         child: Container(
           padding: EdgeInsets.only(top: 30),
           color: Colors.transparent,
-          child: _result(context),
+          child: Consumer<ClassifyProvider>(
+            builder: (context, classifyProvider, _) {
+              if (classifyProvider.state == ClassifyState.Idle) {
+                return _idle(context);
+              } else if (classifyProvider.state == ClassifyState.Scanning) {
+                return _scanning(context);
+              } else if (classifyProvider.state == ClassifyState.Complete) {
+                return _result(
+                  context: context,
+                  image: _image,
+                  result: classifyProvider.result,
+                );
+              }
+              return SizedBox();
+            },
+          ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: _buttonScan(context),
+      floatingActionButton: Consumer<ClassifyProvider>(
+        builder: (context, classifyProvider, _) {
+          if (classifyProvider.state == ClassifyState.Idle) {
+            return _buttonScan(context);
+          }
+          return SizedBox();
+        },
+      ),
     );
   }
 
   Widget _buttonScan(BuildContext context) {
     return GestureDetector(
-      onTap: () {},
+      onTap: () {
+        _pickImage(context);
+      },
       child: Container(
         height: 120,
         width: 120,
@@ -104,12 +137,12 @@ class MainPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'How to use application :',
+                'Cara menggunakan aplikasi :',
                 style: Const.styleHeader.copyWith(color: Colors.white),
               ),
               SizedBox(height: 10),
               Text(
-                "1. Tap on 'Scan Now'\n2. Choose location image\n3. Done.. ",
+                "1. Tekan tombol 'Scan Now'\n2. Pilih lokasi gambar \n3. Enjoy.. ",
                 style: Const.styleSubTitle.copyWith(color: Colors.white),
               ),
             ],
@@ -151,7 +184,7 @@ class MainPage extends StatelessWidget {
     );
   }
 
-  Widget _result(BuildContext context) {
+  Widget _result({BuildContext context, File image, String result}) {
     return Container(
       height: Const.screenHeight(context) * 0.6,
       width: Const.screenWidth(context) - 60,
@@ -177,17 +210,22 @@ class MainPage extends StatelessWidget {
               color: Const.primaryColor,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: SvgPicture.asset('assets/images/scanning.svg'),
+            child: Image(
+              fit: BoxFit.cover,
+              image: FileImage(image),
+            ),
           ),
           Text(
-            'Banana',
+            result ?? 'Tidak di ketahui',
             style: Const.styleTitle.copyWith(
               color: Const.primaryColor,
             ),
           ),
           SizedBox(height: 10),
           Text(
-            'Detective says this is Banana. Find out again if it doesn\'t feel right.',
+            result != null
+                ? 'Detective mengatakan ini adalah $result, cari tau kembali jika di rasa kurang tepat.'
+                : 'Detective tidak mengetahui jenis buah ini, cari tau kembali dengan gambar yang lain.',
             style: Const.styleSubTitle.copyWith(
               color: Const.grayColor,
             ),
@@ -203,7 +241,9 @@ class MainPage extends StatelessWidget {
                 'SCAN AGAIN',
                 style: Const.styleTitle.copyWith(color: Colors.white),
               ),
-              onPressed: () {},
+              onPressed: () {
+                _pickImage(context);
+              },
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -211,6 +251,27 @@ class MainPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _pickImage(BuildContext context) async {
+    final classifyProvider = Provider.of<ClassifyProvider>(
+      context,
+      listen: false,
+    );
+
+    print('kesisni');
+
+    await pickImage(
+      context: context,
+      image: (image) {
+        _image = image;
+
+        if (_image != null) {
+          print('scanning');
+          classifyProvider.scanOnImage(_image);
+        }
+      },
     );
   }
 }
