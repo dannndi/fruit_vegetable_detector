@@ -17,6 +17,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => ClassifyProvider()),
       ],
       child: MaterialApp(
+        debugShowCheckedModeBanner: false,
         title: 'Fruit or Vegetable Detector',
         theme: ThemeData(
           primarySwatch: Colors.green,
